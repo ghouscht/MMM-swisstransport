@@ -3,8 +3,8 @@
 /* Magic Mirror
  * Module: SwissTransport
  *
- * By Benjamin Angst http://www.beny.ch
- * based on a Script from Michael Teeuw http://michaelteeuw.nl
+ * By Sebastian Plattner
+ * based on https://github.com/Bangee44/MMM-swisstransport from Benjamin Angst http://www.beny.ch
  * MIT Licensed.
  */
 
@@ -13,14 +13,17 @@ Module.register("MMM-swisstransport",{
 	// Define module defaults
 	defaults: {
 		maximumEntries: 10, // Total Maximum Entries
-		updateInterval: 5 * 60 * 1000, // Update every 5 minutes.
+		updateInterval: 2 * 60 * 1000, // Update Trains Data every 2 minutes.
 		animationSpeed: 2000,
 		fade: true,
 		fadePoint: 0.25, // Start on 1/4th of the list.
-                initialLoadDelay: 0, // start delay seconds.
+        initialLoadDelay: 0, // start delay seconds.
+
+        domRefresh: 1000 * 30, // Refresh Dom each 30 s
 		
-                apiBase: 'http://transport.opendata.ch/v1/stationboard',
-                id: "008503203",
+        apiBase: 'http://transport.opendata.ch/v1/stationboard',
+        id: "008503203",
+        minWalkingTime: 4,
                 
 		titleReplace: {
 			"Zeittabelle ": ""
@@ -44,9 +47,15 @@ Module.register("MMM-swisstransport",{
 		// Set locale.
 		moment.locale(config.language);
 
-                this.trains = [];
+        this.trains = [];
 		this.loaded = false;
 		this.scheduleUpdate(this.config.initialLoadDelay);
+
+		// Update DOM seperatly and not only on schedule Update
+		var self = this;
+		setInterval(function() {
+			self.updateDom(this.config.animationSpeed);
+		}, this.config.domRefresh);
 
 		this.updateTimer = null;
 
@@ -55,6 +64,8 @@ Module.register("MMM-swisstransport",{
 	// Override dom generator.
 	getDom: function() {
 		var wrapper = document.createElement("div");
+
+		var currentTime = moment();
 
 		if (this.config.id === "") {
 			wrapper.innerHTML = "Please set the correct Station ID: " + this.name + ".";
@@ -77,32 +88,50 @@ Module.register("MMM-swisstransport",{
 			var row = document.createElement("tr");
 			table.appendChild(row);
 
+			// Number
+			var trainNumberCell = document.createElement("td");
+			trainNumberCell.innerHTML = "<i class=\"fa fa-train\"></i> " + trains.number;
+			trainNumberCell.className = "align-left";
+			row.appendChild(trainNumberCell);
+
+			// To
+			var trainToCell = document.createElement("td");
+			trainToCell.innerHTML = trains.to;
+			trainToCell.className = "align-left trainto";
+			row.appendChild(trainToCell);
+
+			// Time + delay
+			var dTime = moment(trains.departureTimestampRaw);
+			var diff = dTime.diff(currentTime, 'minutes');
+
 			var depCell = document.createElement("td");
-			depCell.className = "departuretime";
+			depCell.className = "align-left departuretime";
 			depCell.innerHTML = trains.departureTimestamp;
+
+			if (diff <= this.config.minWalkingTime ){
+				row.className = "red";
+			}
+
 			row.appendChild(depCell);
 
-                        if(trains.delay) {
-                            var delayCell = document.createElement("td");
-                            delayCell.className = "delay red";
-                            delayCell.innerHTML = "+" + trains.delay + " min";
-                            row.appendChild(delayCell);
-                        } else {
-                            var delayCell = document.createElement("td");
-                            delayCell.className = "delay red";
-                            delayCell.innerHTML = trains.delay;
-                            row.appendChild(delayCell);
-                        }
+            if(trains.delay) {
+                var delayCell = document.createElement("td");
+                delayCell.className = "delay red";
+                delayCell.innerHTML = "+" + trains.delay + " min";
+                row.appendChild(delayCell);
+            } else {
+                var delayCell = document.createElement("td");
+                delayCell.className = "delay red";
+                delayCell.innerHTML = trains.delay;
+                row.appendChild(delayCell);
+            }
 
-			var trainNameCell = document.createElement("td");
+			/*var trainNameCell = document.createElement("td");
 			trainNameCell.innerHTML = trains.name;
 			trainNameCell.className = "align-right bright";
 			row.appendChild(trainNameCell);
+			*/
 
-			var trainToCell = document.createElement("td");
-			trainToCell.innerHTML = trains.to;
-			trainToCell.className = "align-right trainto";
-			row.appendChild(trainToCell);
 
 			if (this.config.fade && this.config.fadePoint < 1) {
 				if (this.config.fadePoint < 0) {
@@ -122,7 +151,6 @@ Module.register("MMM-swisstransport",{
 	},
 
 	/* updateTimetable(compliments)
-	 * Requests new data from openweather.org.
 	 * Calls processTrains on succesfull response.
 	 */
 	updateTimetable: function() {
@@ -178,14 +206,19 @@ Module.register("MMM-swisstransport",{
 		for (var i = 0, count = data.stationboard.length; i < count; i++) {
 
 			var trains = data.stationboard[i];
-			this.trains.push({
 
-				departureTimestamp: moment(trains.stop.departureTimestamp * 1000).format("HH:mm"),
-				delay: trains.stop.delay,
-				name: trains.name,
-				to: trains.to
-
-			});
+			// Only get trains where next stop is as configured, if not configured, display all
+			if (trains.passList[1].station.id == this.config.directionTo || !this.config.directionTo ) {
+				this.trains.push({
+					departureTimestampRaw: trains.stop.departureTimestamp * 1000,
+					departureTimestamp: moment(trains.stop.departureTimestamp * 1000).format("HH:mm"),
+					delay: trains.stop.delay,
+					name: trains.name,
+					to: trains.to,
+					number: trains.number
+				});
+			}
+			
 		}
 
 		this.loaded = true;

@@ -1,4 +1,4 @@
-.swisstransport {
+.MMM-swisstransport {
   font-size: 75%;
   line-height: 65px;
   display: inline-block;
@@ -7,10 +7,10 @@
   transform: translate(0, -3px);
 }
 
-.swisstransport table {
-    width: 400px;
+.MMM-swisstransport table {
+    width: 350px;
 }
 
-.swisstransport .red {
+.MMM-swisstransport .red {
     color: #FF0000
 }

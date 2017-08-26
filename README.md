@@ -1,5 +1,5 @@
 # MMM-swisstransport
-Additional Module for MagicMirror²  https://github.com/MichMich/MagicMirror/tree/v2-beta
+Additional Module for MagicMirror²  https://github.com/MichMich/MagicMirror
 
 # Module: SwissTransport
 This module displays traindepartures from your favourit trainstation.
