@@ -14,8 +14,6 @@ module.exports = NodeHelper.create({
       payload.stations.forEach(station => {
         const requestURL = `${payload.apiBase}?id=${station.id}&limit=${station.limit}`
 
-        console.log(`${self.name} GET ${requestURL}`)
-
         promises.push(new Promise((resolve, reject) => {
           request(requestURL, {json: true}, (err, resp, body) => {            
             if (err) {
